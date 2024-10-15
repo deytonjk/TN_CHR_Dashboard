@@ -136,22 +136,24 @@ with top_left_column:
         
         plot_gauge(361, "#FF8700", " days", "Good Physical Health Days/Year", 365)
 
-        plot_metric("Preventable Hostpital Stays", 2896, prefix="", suffix="", show_graph=True, color_graph="rgba(0, 104, 201, 0.2)", )
+        plot_metric("Preventable Hospital Stays", 2896, prefix="", suffix="", show_graph=True, color_graph="rgba(0, 104, 201, 0.2)", )
 
     with column_2:
         
         plot_gauge(359.2, "#708090", " days", "Good Mental Health Days/Year", 365)
 
+        plot_metric("Uninsured", 11.8, prefix="", suffix="%", show_graph=False,)
         
     with column_3:
         plot_gauge(35.5, "#ffff00", "%", "Adult Obesity", 100)
         
-        plot_metric("Population per Mental Health Proffesional", 532, prefix="", suffix="", show_graph=True, color_graph="rgba(246, 150, 200, 0.8)", )
+        plot_metric("Population per Mental Health Professional", 532, prefix="", suffix="", show_graph=True, color_graph="rgba(246, 150, 200, 0.8)", )
 
 
     with column_4:
         plot_gauge(67.4, "#66ff33", "%", "Access to Exercise Opportunities", 100)
 
+        plot_metric("Unemployment", 3.4, prefix="", suffix="%", show_graph=False,)
 
 
 with top_right_column:
