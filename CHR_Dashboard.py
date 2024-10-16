@@ -237,6 +237,7 @@ def plot_bottom_left():
    
 plot_bottom_left()
 
+df=load_data("./TN_CHR_data2024.xlsx")
 st.header(":orange[County Seat Locations]")
 st.map(df, latitude="LAT", longitude="LON", color="#ff9900", use_container_width=True)     
 
