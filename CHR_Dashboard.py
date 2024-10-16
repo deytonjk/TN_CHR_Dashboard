@@ -198,11 +198,6 @@ if st.button('Click to show your choice'):
 else: "Waiting for your selection..."
 
 
-
-st.header(":orange[County Seat Locations]")
-st.map(df, latitude="LAT", longitude="LON", color="#ff9900", use_container_width=True)
-
-
 st.header(":orange[Five-Year Premature Death Data for Select Counties]")
 df=load_data("./TN_County_Premature_D_5_Year.xlsx")
 all_years = ['2019','2020','2021','2022','2023']
@@ -239,7 +234,8 @@ def plot_bottom_left():
         fig.update_traces(textposition="top center")
         st.plotly_chart(fig, use_container_width=True)
 
-        
+st.header(":orange[County Seat Locations]")
+st.map(df, latitude="LAT", longitude="LON", color="#ff9900", use_container_width=True)     
        
 
        
