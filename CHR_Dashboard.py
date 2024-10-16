@@ -234,13 +234,9 @@ def plot_bottom_left():
         fig.update_traces(textposition="top center")
         st.plotly_chart(fig, use_container_width=True)
 
+   
+plot_bottom_left()
+
 st.header(":orange[County Seat Locations]")
 st.map(df, latitude="LAT", longitude="LON", color="#ff9900", use_container_width=True)     
-       
-
-       
-
-        
-
-plot_bottom_left()
 
