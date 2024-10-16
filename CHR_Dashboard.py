@@ -23,7 +23,6 @@ def load_data(path: str):
 
 df=load_data("./TN_CHR_data2024.xlsx")
 
-
 #display the uploaded file in dropdown
 with st.expander("2024 Data Preview"):
     st.dataframe(
@@ -143,6 +142,7 @@ with top_left_column:
         plot_gauge(359.2, "#708090", " days", "Good Mental Health Days/Year", 365)
 
         plot_metric("Uninsured", 11.8, prefix="", suffix="%", show_graph=False,)
+
         
     with column_3:
         plot_gauge(35.5, "#ffff00", "%", "Adult Obesity", 100)
@@ -201,3 +201,50 @@ else: "Waiting for your selection..."
 
 st.header(":orange[County Seat Locations]")
 st.map(df, latitude="LAT", longitude="LON", color="#ff9900", use_container_width=True)
+
+
+st.header(":orange[Five-Year Premature Death Data for Select Counties]")
+df=load_data("./TN_County_Premature_D_5_Year.xlsx")
+all_years = ['2019','2020','2021','2022','2023']
+def plot_bottom_left():
+        trend_data=duckdb.sql(
+            f"""
+            WITH trend_data AS (
+                SELECT *
+                FROM df
+                WHERE Name ='Shelby County'
+                    OR Name = 'Williamson County'
+                    OR Name = 'Sullivan County'
+                    OR Name = 'Washington County'
+                    OR Name = 'Knox County'                
+                )
+                UNPIVOT trend_data
+                ON {',' .join(all_years)}
+                INTO
+                    NAME year
+                    VALUE deaths
+           
+        """
+        ).df()
+
+        fig = px.line(
+            trend_data,
+            x= 'year',
+            y='deaths',
+            color='Name',
+            markers=True,
+            title="Five-Year Premature Death Raw Numbers",
+
+        )
+        fig.update_traces(textposition="top center")
+        st.plotly_chart(fig, use_container_width=True)
+
+        
+        st.dataframe(trend_data)
+
+       
+
+        
+
+plot_bottom_left()
+
