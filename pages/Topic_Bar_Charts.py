@@ -209,7 +209,7 @@ with col1:
         lat=merged_df['Latitude'],
         lon=merged_df['Longitude'],
         mode='markers',
-        marker=dict(size=ranked_df.index + 5),
+        marker=dict(size=ranked_df.index + 10),
         text=merged_df['County'],
     ))
 
@@ -240,3 +240,4 @@ with col2:
     plot_gauge(sorted_bardata1.at[1,topic_title], 'blue', '', f'Best in State: {best}', sorted_bardata1[topic_title].max())
     plot_gauge(sorted_bardata1.tail(1)[topic_title].values[0], 'blue', '', f'Worst in State: {worst}', sorted_bardata1[topic_title].max())
     st.markdown(category_explanation[chosen_topic])
+
