@@ -235,6 +235,8 @@ with col2:
     sorted_bardata1=bar_data_state.sort_values(by=f'{topic_title}', ascending=True)
     sorted_bardata1['Rank (lowest value)']=range(1,len(sorted_bardata1)+1)
     sorted_bardata1 = sorted_bardata1.set_index('Rank (lowest value)')
-    plot_gauge(sorted_bardata1.at[1,topic_title], 'blue', '', f'Best in State: {sorted_bardata1.at[1,'name']}', sorted_bardata1[topic_title].max())
-    plot_gauge(sorted_bardata1.tail(1)[topic_title].values[0], 'blue', '', f'Worst in State: {sorted_bardata1.tail(1)['name'].values[0]}', sorted_bardata1[topic_title].max())
+    best = sorted_bardata1.at[1,'name']
+    worst = sorted_bardata1.tail(1)['name'].values[0]
+    plot_gauge(sorted_bardata1.at[1,topic_title], 'blue', '', f'Best in State: {best}', sorted_bardata1[topic_title].max())
+    plot_gauge(sorted_bardata1.tail(1)[topic_title].values[0], 'blue', '', f'Worst in State: {worst}', sorted_bardata1[topic_title].max())
     st.markdown(category_explanation[chosen_topic])
