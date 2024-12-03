@@ -15,7 +15,7 @@ st.set_page_config(
         page_icon=":hospital",
         layout="wide"
 )
-st.title(" :blue[National Health Rankings by State and County]")
+st.title("National Health Rankings by State and County")
 
 
 
