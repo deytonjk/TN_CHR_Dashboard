@@ -266,6 +266,3 @@ if st.button('Click to see the data in table form'):
         st.markdown(f'About {chosen_topic}:  {category_explanation[chosen_topic]}')
        
     trend_plot_data(abbr_state, chosen_counties, topic_title)
-
-
-
