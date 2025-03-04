@@ -224,7 +224,8 @@ with col1:
     )
 
     # Show the figure
-    st.plotly_chart(fig)
+    if len(chosen_counties)>0:
+        st.plotly_chart(fig)
 
 with col2:
     
