@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 import streamlit as st
-import duckdb
+
 
 
 #VERSION 3 - THIS VERSION LOADS UP ALL THE DATA INTO SEPARATE DATAFRAMES FOR EACH YEAR
@@ -266,3 +266,6 @@ if st.button('Click to see the data in table form'):
         st.markdown(f'About {chosen_topic}:  {category_explanation[chosen_topic]}')
        
     trend_plot_data(abbr_state, chosen_counties, topic_title)
+
+
+
