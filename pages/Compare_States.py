@@ -15,7 +15,6 @@ st.set_page_config(
 )
 st.title("Compare State Trends (2009-2023)")
 
-st.sidebar.success("")
 
 if 'df2009' in st.session_state:
 
