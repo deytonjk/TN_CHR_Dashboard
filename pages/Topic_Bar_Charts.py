@@ -17,7 +17,6 @@ st.set_page_config(
 )
 st.title("County Comparisons by Year")
 
-st.sidebar.success("")
 
 if 'df2009' in st.session_state:
     
