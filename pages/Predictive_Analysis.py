@@ -146,7 +146,7 @@ if 'df2009' in st.session_state:
     
 
 
-    if st.button('Click here to for the 10 - year forecast.'):
+    if st.button('Click here to for the 5 - year forecast.'):
         
         #fix chosen topic to match column titles in the data set (put back in the _ and _raw_value)
         x = chosen_topic.replace(' ','_')
@@ -233,7 +233,7 @@ if 'df2009' in st.session_state:
                       suppress_warnings=True)
             #st.markdown(model.summary())
             
-            forecasts, conf_int = model.predict(n_periods=10, return_conf_int=True)
+            forecasts, conf_int = model.predict(n_periods=5, return_conf_int=True)
             forecast_df = pd.DataFrame(forecasts, columns=['forecast']) 
             conf_df = pd.DataFrame(conf_int, columns=['lower_ci', 'upper_ci'])
             conf_df.index = forecast_df.index
@@ -375,8 +375,8 @@ if 'df2009' in st.session_state:
             model_fit = model.fit()
 
             
-            # Forecast 10 years into the future
-            forecast_steps = 10
+            # Forecast 5 years into the future
+            forecast_steps = 5
             forecast = model_fit.get_forecast(steps=forecast_steps)
             forecast_mean = forecast.predicted_mean
             forecast_ci = forecast.conf_int()
