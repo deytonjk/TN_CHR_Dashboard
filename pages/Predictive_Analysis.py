@@ -484,6 +484,6 @@ if 'df2009' in st.session_state:
                    st.markdown('Forecast Table')
                    st.dataframe(forecast_df[['forecast','lower_ci', 'upper_ci']])
         except:
-            st.error("Unfortunately, this topic did not have enough data collected to support forecasting.  Please choose another topic.")                    
+            st.error("Unfortunately, this topic did not have enough data collected to support forecasting.  Please choose another topic or county.")                    
 else:
      st.write('Unfortunately, the data did not load correctly.  Please return to the main dashboard page before returning to create these charts.')
