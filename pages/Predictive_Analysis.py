@@ -485,3 +485,5 @@ if 'df2009' in st.session_state:
             with col4:
                st.markdown('Forecast Table')
                st.dataframe(forecast_df[['forecast','lower_ci', 'upper_ci']])
+else:
+     st.write('Unfortunately, the data did not load correctly.  Please return to the main dashboard page before returning to create these charts.')
