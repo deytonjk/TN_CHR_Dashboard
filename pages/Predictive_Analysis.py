@@ -674,7 +674,7 @@ if 'df2009' in st.session_state:
                 chart = (historical_line + forecast_line + forecast_band + connection).properties(
                     width=600,
                     height=400,
-                    title=f'{chosen_topic} with ARIMA({p}, {topic_results[0]}, {q}) Forecast and 95% Confidence Interval',
+                    title=f'{chosen_topic} LSTM Forecast and 95% Confidence Interval',
     
                 ).interactive()
 
