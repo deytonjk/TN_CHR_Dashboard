@@ -392,7 +392,7 @@ if 'df2009' in st.session_state:
                 'upper_ci': forecast_ci.iloc[:, 1]
             })
 
-
+	'''
             # small df to connect the end of historical data to futue data (just for appearance)
             gap_df = pd.DataFrame({'year': [county_df.index[-1], forecast_df.year[0]], topic_title: [county_df[topic_title][-1], forecast_df['forecast'][0]]})
 
@@ -446,7 +446,7 @@ if 'df2009' in st.session_state:
                 ).interactive()
 
                 st.altair_chart(chart, use_container_width=True)
-                
+           '''  
 
             # Create standalone HTML legend
             legend_html = """
