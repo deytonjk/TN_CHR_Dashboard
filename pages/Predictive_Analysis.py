@@ -504,8 +504,7 @@ if 'df2009' in st.session_state:
         # pull out the data for the county and topic and begin the ARIMA process
         county_df = data[(data['name']== chosen_county)][['year', topic_title]]
 
-        county_df[chosen_topic]=county_df[topic_title]*100
-
+        
         # TURN THE YEAR TO DATE-TIME OBJECT
         county_df['year']=pd.to_datetime(county_df['year'], format='%Y')
 
