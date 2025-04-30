@@ -1,16 +1,19 @@
+
 #This page will let the user choose features to run through some ml models
 
-import random
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import numpy as np
+from numpy import array
 import streamlit as st
 import altair as alt
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.arima.model import ARIMA
 import warnings
 warnings.filterwarnings("ignore")  # Suppress convergence warnings
+from keras.models import Sequential
+from keras.layers import LSTM, Dense, Dropout
+from scipy.stats import norm
+import pmdarima as pm
 
 
 
@@ -143,347 +146,576 @@ if 'df2009' in st.session_state:
     
 
 
-    if st.button('Click here to for the 5 - year forecast.'):
+    if st.button('Click here to for the 5 - year forecast (ARIMA Model).'):
+        
+        #fix chosen topic to match column titles in the data set (put back in the _ and _raw_value)
+        x = chosen_topic.replace(' ','_')
+        topic_title = x + '_raw_value'
+    
+        #find the abbreviation for the state - this will match the abbreviation linked to the county in the dataframe
+        abbr_state = st.session_state.df2009[(st.session_state.df2009['name'] == state_choice)]['state_abbreviation'].values[0]
+        
+        
+        
+        data = trend_plot_data(abbr_state, chosen_county, topic_title)
 
-        try: 
-            #fix chosen topic to match column titles in the data set (put back in the _ and _raw_value)
-            x = chosen_topic.replace(' ','_')
-            topic_title = x + '_raw_value'
         
-            #find the abbreviation for the state - this will match the abbreviation linked to the county in the dataframe
-            abbr_state = st.session_state.df2009[(st.session_state.df2009['name'] == state_choice)]['state_abbreviation'].values[0]
+
+        # pull out the data for the county and topic and begin the ARIMA process
+        county_df = data[(data['name']== chosen_county)][['year', topic_title]]
+
+        county_df[chosen_topic]=county_df[topic_title]*100
+
+        # TURN THE YEAR TO DATE-TIME OBJECT
+        county_df['year']=pd.to_datetime(county_df['year'], format='%Y')
+
+        # make the date the index
+        county_df.index = county_df['year']
+
+
+        # Sort the DataFrame by the Date index in ascending order
+        county_df.sort_index(inplace=True)
+
+
+
+
+
+        # determine stationary - repeat differences until reaching p-value < .05.  Limit degree (d) <= 3.    
+        def find_stationary(df, topic):
+            d = 0
+            st_value = ''
+            ADF_statistic = 0
+            p_value = 0
+    
+    
+            # Perform the Augmented Dickey-Fuller test on the original series
+            result_original = adfuller(df[topic])        
+
+            if result_original[1] < 0.05:   # p -value
+                st_value = 'Stationary'
+                ADF_statistic = result_original[0]
+                p_value = result_original[1]
+            else:     
+        
+                while d < 4 and st_value != 'Stationary':
+
+                    # Apply differencing
+                    d += 1
+                    df[f'{topic}_diff'] = df[topic].diff()
+            
+                    # Perform the Augmented Dickey-Fuller test on the differenced series
+                    result_diff = adfuller(df[f'{topic}_diff'].dropna())
+            
+                    if result_diff[1]<0.05:
+                        st_value = 'Stationary'
+                        ADF_statistic = result_diff[0]
+                        p_value = result_diff[1]
+    
+            stationary_results = [ d, p_value, ADF_statistic ]
+    
+            return stationary_results
+
+
+
+        topic_results = find_stationary(county_df, topic_title )
+
+        if topic_results[0] == 4:
             
             
+            model = pm.auto_arima(county_df[topic_title], 
+                      start_p=0, start_q=0, 
+                      max_p=3, max_q=3, 
+                      max_d=3, 
+                      stepwise=True, 
+                      trace=True, 
+                      error_action="ignore", 
+                      suppress_warnings=True)
+            #st.markdown(model.summary())
             
-            data = trend_plot_data(abbr_state, chosen_county, topic_title)
-    
+            forecasts, conf_int = model.predict(n_periods=10, return_conf_int=True)
+            forecast_df = pd.DataFrame(forecasts, columns=['forecast']) 
+            conf_df = pd.DataFrame(conf_int, columns=['lower_ci', 'upper_ci'])
+            conf_df.index = forecast_df.index
+            forecast_df['lower_ci'] = conf_df['lower_ci']
+            forecast_df['upper_ci'] = conf_df['upper_ci']
+            forecast_df['year'] = forecast_df.index
             
+            # small df to connect the end of historical data to futue data (just for appearance)
+            gap_df = pd.DataFrame({'year': [county_df.index[-1], forecast_df.year[0]], topic_title: [county_df[topic_title][-1], forecast_df['forecast'][0]]})
+
+            # Create the chart with a dotted line
+            connection = alt.Chart(gap_df).mark_line().encode(
+                x='year',
+                y=topic_title,
+                strokeDash=alt.value( [4, 4]), #  Alternating dash and space lengths
+                color = alt.value('green')
+            )
     
-            # pull out the data for the county and topic and begin the ARIMA process
-            county_df = data[(data['name']== chosen_county)][['year', topic_title]]
-    
-            county_df[chosen_topic]=county_df[topic_title]*100
-    
-            # TURN THE YEAR TO DATE-TIME OBJECT
-            county_df['year']=pd.to_datetime(county_df['year'], format='%Y')
-    
-            # make the date the index
-            county_df.index = county_df['year']
-    
-    
-            # Sort the DataFrame by the Date index in ascending order
-            county_df.sort_index(inplace=True)
-    
-    
-    
-    
-    
-            # determine stationary - repeat differences until reaching p-value < .05.  Limit degree (d) <= 3.    
-            def find_stationary(df, topic):
-                d = 0
-                st_value = ''
-                ADF_statistic = 0
-                p_value = 0
-        
-        
-                # Perform the Augmented Dickey-Fuller test on the original series
-                result_original = adfuller(df[topic])        
-    
-                if result_original[1] < 0.05:   # p -value
-                    st_value = 'Stationary'
-                    ADF_statistic = result_original[0]
-                    p_value = result_original[1]
-                else:     
+
+
+            # display chart in streamlit
+            # Create two columns: one for the chart, one for the legend
+            col1, col2 = st.columns([3, 1])
+
             
-                    while d < 4 and st_value != 'Stationary':
+
+            with col1:
+                historical_line = alt.Chart(county_df).mark_line(point=True).encode(
+                    alt.Y(topic_title).title(chosen_topic),
+                    alt.X('year:T')
     
-                        # Apply differencing
-                        d += 1
-                        df[f'{topic}_diff'] = df[topic].diff()
-                
-                        # Perform the Augmented Dickey-Fuller test on the differenced series
-                        result_diff = adfuller(df[f'{topic}_diff'].dropna())
-                
-                        if result_diff[1]<0.05:
-                            st_value = 'Stationary'
-                            ADF_statistic = result_diff[0]
-                            p_value = result_diff[1]
+    
+    
+                    )
+
+                forecast_band = alt.Chart(forecast_df).mark_errorband().encode(
+                    alt.Y(
+                        "upper_ci:Q",
+                        scale=alt.Scale(zero=False),
         
-                stationary_results = [ d, p_value, ADF_statistic ]
-        
-                return stationary_results
-    
-    
-    
-            topic_results = find_stationary(county_df, topic_title )
-    
-            if topic_results[0] == 4:
-                
-                import pmdarima as pm
-    
-                model = pm.auto_arima(county_df[topic_title], 
-                          start_p=0, start_q=0, 
-                          max_p=3, max_q=3, 
-                          max_d=3, 
-                          stepwise=True, 
-                          trace=True, 
-                          error_action="ignore", 
-                          suppress_warnings=True)
-                #st.markdown(model.summary())
-                
-                forecasts, conf_int = model.predict(n_periods=5, return_conf_int=True)
-                forecast_df = pd.DataFrame(forecasts, columns=['forecast']) 
-                conf_df = pd.DataFrame(conf_int, columns=['lower_ci', 'upper_ci'])
-                conf_df.index = forecast_df.index
-                forecast_df['lower_ci'] = conf_df['lower_ci']
-                forecast_df['upper_ci'] = conf_df['upper_ci']
-                forecast_df['year'] = forecast_df.index
-                
-                # small df to connect the end of historical data to futue data (just for appearance)
-                gap_df = pd.DataFrame({'year': [county_df.index[-1], forecast_df.year[0]], topic_title: [county_df[topic_title][-1], forecast_df['forecast'][0]]})
-    
-                # Create the chart with a dotted line
-                connection = alt.Chart(gap_df).mark_line().encode(
-                    x='year',
-                    y=topic_title,
-                    strokeDash=alt.value( [4, 4]), #  Alternating dash and space lengths
-                    color = alt.value('green')
+                    ).title(chosen_topic),
+                    alt.Y2("lower_ci:Q").title(chosen_topic),
+                    alt.X("year:T"),
+                    color = alt.value("red")
                 )
-        
+
+                forecast_line = alt.Chart(forecast_df).mark_line(point=True).encode(
+                    alt.Y("forecast").title(chosen_topic),
+                    alt.X("year:T"),
+                    color=alt.value("red")
+                )
+
+
+                chart = (historical_line + forecast_line + forecast_band + connection).properties(
+                    width=600,
+                    height=400,
+                    title=f'{chosen_topic} with Auto-ARIMA Forecast and 95% Confidence Interval',
     
-    
-                # display chart in streamlit
-                # Create two columns: one for the chart, one for the legend
-                col1, col2 = st.columns([3, 1])
-    
-                import altair as alt
-    
-                with col1:
-                    historical_line = alt.Chart(county_df).mark_line(point=True).encode(
-                        alt.Y(topic_title).title(chosen_topic),
-                        alt.X('year:T')
-        
-        
-        
-                        )
-    
-                    forecast_band = alt.Chart(forecast_df).mark_errorband().encode(
-                        alt.Y(
-                            "upper_ci:Q",
-                            scale=alt.Scale(zero=False),
-            
-                        ).title(chosen_topic),
-                        alt.Y2("lower_ci:Q").title(chosen_topic),
-                        alt.X("year:T"),
-                        color = alt.value("red")
-                    )
-    
-                    forecast_line = alt.Chart(forecast_df).mark_line(point=True).encode(
-                        alt.Y("forecast").title(chosen_topic),
-                        alt.X("year:T"),
-                        color=alt.value("red")
-                    )
-    
-    
-                    chart = (historical_line + forecast_line + forecast_band + connection).properties(
-                        width=600,
-                        height=400,
-                        title=f'{chosen_topic} with Auto-ARIMA Forecast and 95% Confidence Interval',
-        
-                    ).interactive()
-    
-                    st.altair_chart(chart, use_container_width=True)
-                    
-                       
-                # Create standalone HTML legend
-                legend_html = """
-                <div style="font-family: Arial, sans-serif; padding: 10px; border: 1px solid #ccc; width: 200px; margin-top: 10px;">
-                    <h4 style="margin: 0 0 10px 0;">Legend</h4>
-                    <div style="display: flex; align-items: center; margin-bottom: 5px;">
-                        <div style="width: 20px; height: 2px; background-color: #1f77b4; margin-right: 5px;"></div>
-                        <span>Historical Data</span>
-                    </div>
-                    <div style="display: flex; align-items: center; margin-bottom: 5px;">
-                        <div style="width: 20px; height: 2px; background-color: #FF0000; margin-right: 5px;"></div>
-                        <span>Forecast</span>
-                    </div>
-                    <div style="display: flex; align-items: center;">
-                        <div style="width: 20px; height: 10px; background-color: #FF0000; opacity: 0.2; margin-right: 5px;"></div>
-                        <span>Confidence Interval</span>
-                    </div>
+                ).interactive()
+
+                st.altair_chart(chart, use_container_width=True)
+                
+                   
+            # Create standalone HTML legend
+            legend_html = """
+            <div style="font-family: Arial, sans-serif; padding: 10px; border: 1px solid #ccc; width: 200px; margin-top: 10px;">
+                <h4 style="margin: 0 0 10px 0;">Legend</h4>
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <div style="width: 20px; height: 2px; background-color: #1f77b4; margin-right: 5px;"></div>
+                    <span>Historical Data</span>
                 </div>
-                """
-                with col2:
-                    st.markdown(legend_html, unsafe_allow_html=True)
-    
-                    if chosen_topic in category_explanation:
-                        st.write('Definition:')
-                        st.markdown(f'{chosen_topic}:  {category_explanation[chosen_topic]}')
-                    
-                col3, col4 = st.columns([1, 1])
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <div style="width: 20px; height: 2px; background-color: #FF0000; margin-right: 5px;"></div>
+                    <span>Forecast</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <div style="width: 20px; height: 10px; background-color: #FF0000; opacity: 0.2; margin-right: 5px;"></div>
+                    <span>Confidence Interval</span>
+                </div>
+            </div>
+            """
+            with col2:
+                st.markdown(legend_html, unsafe_allow_html=True)
+
+                if chosen_topic in category_explanation:
+                    st.write('Definition:')
+                    st.markdown(f'{chosen_topic}:  {category_explanation[chosen_topic]}')
                 
-                with col3:
-                   st.markdown('Original Data Table')
-                   st.dataframe(county_df[['year', topic_title]], hide_index = True)
-                    
+            col3, col4 = st.columns([1, 1])
+            
+            with col3:
+               st.markdown('Original Data Table')
+               st.dataframe(county_df[['year', topic_title]], hide_index = True)
                 
-                with col4:
-                   st.markdown('Forecast Table')
-                   st.dataframe(forecast_df[['forecast','lower_ci', 'upper_ci']])
-                        
+            
+            with col4:
+               st.markdown('Forecast Table')
+               st.dataframe(forecast_df[['forecast','lower_ci', 'upper_ci']])
+                    
+
+
+
+
+
+
+
+
+        # THE DIFFERENCING METHOD FOUND d =< 3 so use it in the regular ARIMA process
+
+
+        else:
+            # find the best p and q values to go with d for the ARIMA model
+            p_values = range(0, 3)
+            q_values = range(0, 3)
+    
+
+            # Grid search
+            best_aic = float("inf")
+            best_params = None
+
+            for p in p_values:
+                for q in q_values:
+                    try:
+                        model = ARIMA(county_df[topic_title], order=(p, topic_results[0], q))
+                        results = model.fit()
+                        aic = results.aic
+                        if aic < best_aic:
+                            best_aic = aic
+                            best_params = (p, topic_results[0], q)
+            
+                    except:
+                        continue
+
+
+
+            # Define and fit ARIMA model (order can be tuned)
+            order = (p, topic_results[0], q)  # Example: ARIMA(1,1,1)
+            model = ARIMA(county_df[topic_title], order=order)
+            model_fit = model.fit()
+
+            
+            # Forecast 10 years into the future
+            forecast_steps = 10
+            forecast = model_fit.get_forecast(steps=forecast_steps)
+            forecast_mean = forecast.predicted_mean
+            forecast_ci = forecast.conf_int()
+
+            # Create dates for forecast
+            forecast_dates = pd.date_range(start=county_df.index[-1] + pd.offsets.YearBegin(1), 
+                                          periods=forecast_steps, freq='YS')
+
+            # Create forecast DataFrame
+            forecast_df = pd.DataFrame({
+                'year': forecast_dates,
+                'forecast': forecast_mean,
+                'lower_ci': forecast_ci.iloc[:, 0],
+                'upper_ci': forecast_ci.iloc[:, 1]
+            })
+
+
+            # small df to connect the end of historical data to futue data (just for appearance)
+            gap_df = pd.DataFrame({'year': [county_df.index[-1], forecast_df.year[0]], topic_title: [county_df[topic_title][-1], forecast_df['forecast'][0]]})
+
+            # Create the chart with a dotted line
+            connection = alt.Chart(gap_df).mark_line().encode(
+                x='year',
+                y=topic_title,
+                strokeDash=alt.value( [4, 4]), #  Alternating dash and space lengths
+                color = alt.value('green')
+            )
+    
+
+
+            # display chart in streamlit
+            # Create two columns: one for the chart, one for the legend
+            col1, col2 = st.columns([3, 1])
+
+            
+            with col1:
+                historical_line = alt.Chart(county_df).mark_line(point=True).encode(
+                    alt.Y(topic_title).title(chosen_topic),
+                    alt.X('year:T')
     
     
     
+                    )
+
+                forecast_band = alt.Chart(forecast_df).mark_errorband().encode(
+                    alt.Y(
+                        "upper_ci:Q",
+                        scale=alt.Scale(zero=False),
+        
+                    ).title(chosen_topic),
+                    alt.Y2("lower_ci:Q").title(chosen_topic),
+                    alt.X("year:T"),
+                    color = alt.value("red")
+                )
+
+                forecast_line = alt.Chart(forecast_df).mark_line(point=True).encode(
+                    alt.Y("forecast").title(chosen_topic),
+                    alt.X("year:T"),
+                    color=alt.value("red")
+                )
+
+
+                chart = (historical_line + forecast_line + forecast_band + connection).properties(
+                    width=600,
+                    height=400,
+                    title=f'{chosen_topic} with ARIMA({p}, {topic_results[0]}, {q}) Forecast and 95% Confidence Interval',
     
+                ).interactive()
+
+                st.altair_chart(chart, use_container_width=True)
+                
+
+            # Create standalone HTML legend
+            legend_html = """
+            <div style="font-family: Arial, sans-serif; padding: 10px; border: 1px solid #ccc; width: 200px; margin-top: 10px;">
+                <h4 style="margin: 0 0 10px 0;">Legend</h4>
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <div style="width: 20px; height: 2px; background-color: #1f77b4; margin-right: 5px;"></div>
+                    <span>Historical Data</span>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <div style="width: 20px; height: 2px; background-color: #FF0000; margin-right: 5px;"></div>
+                    <span>Forecast</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <div style="width: 20px; height: 10px; background-color: #FF0000; opacity: 0.2; margin-right: 5px;"></div>
+                    <span>Confidence Interval</span>
+                </div>
+            </div>
+            """
+            with col2:
+                st.markdown(legend_html, unsafe_allow_html=True)
+
+                if chosen_topic in category_explanation:
+                    st.write('Definition:')
+                    st.markdown(f'{chosen_topic}:  {category_explanation[chosen_topic]}')
+
+            col3, col4 = st.columns([1, 1])
+            
+            with col3:
+               st.markdown('Original Data Table')
+               st.dataframe(county_df[['year', topic_title]], hide_index = True)
+                
+            
+            with col4:
+               st.markdown('Forecast Table')
+               st.dataframe(forecast_df[['forecast','lower_ci', 'upper_ci']])
+
+
+
+    if st.button('Click here to for the 5 - year forecast (LSTM Model).'):
+        
+        #fix chosen topic to match column titles in the data set (put back in the _ and _raw_value)
+        x = chosen_topic.replace(' ','_')
+        topic_title = x + '_raw_value'
     
+        #find the abbreviation for the state - this will match the abbreviation linked to the county in the dataframe
+        abbr_state = st.session_state.df2009[(st.session_state.df2009['name'] == state_choice)]['state_abbreviation'].values[0]
+        
+        
+        
+        data = trend_plot_data(abbr_state, chosen_county, topic_title)
+
+        
+
+        # pull out the data for the county and topic and begin the ARIMA process
+        county_df = data[(data['name']== chosen_county)][['year', topic_title]]
+
+        county_df[chosen_topic]=county_df[topic_title]*100
+
+        # TURN THE YEAR TO DATE-TIME OBJECT
+        county_df['year']=pd.to_datetime(county_df['year'], format='%Y')
+
+        # make the date the index
+        county_df.index = county_df['year']
+
+
+        # Sort the DataFrame by the Date index in ascending order
+        county_df.sort_index(inplace=True)
+
+
+        # univariate data preparation
+        
+
+        
+        # split the univariate sequence into samples
+        def split_sequence(sequence, n_steps):
+            X, y = list(), list()
+            for i in range(len(sequence)):
+		        # find the end of this pattern
+                end_ix = i + n_steps
+		        # check if we are beyond the sequence
+                if end_ix > len(sequence)-1:
+                    break
+		        # gather input and output parts of the pattern
+                seq_x, seq_y = sequence[i:end_ix], sequence[end_ix]
+                X.append(seq_x)
+                y.append(seq_y)
+            return array(X), array(y)
+
+        # define input sequence
+        raw_seq = county_df['adult_obesity_raw_value'].values
+        # choose a number of time steps
+        n_steps = 3
+        
+        # univarite data, so it has one feature
+        n_features = 1
+
+        # split into samples
+        X, y = split_sequence(raw_seq, n_steps)
+       
+
+        # define model
+        model = Sequential([
+            LSTM(50, activation='relu', input_shape=(n_steps, n_features), return_sequences=True),
+            Dropout(0.2),
+            LSTM(50, activation='relu'),
+            Dropout(0.2),
+            Dense(1)
+            ])
+        model.compile(optimizer='adam', loss='mse')
+
+        # reshape from [samples, timesteps] into [samples, timesteps, features]
+        X = X.reshape((X.shape[0], X.shape[1], n_features))
+
+        # fit model
+        model.fit(X, y, epochs=200, verbose=0)
+
+        # get prediction for next 5 steps (years) 
+
+        n_mc = 100  # Number of Monte Carlo samples for uncertainty estimation
+        confidence_level = 0.95  # For 95% confidence intervals
+        z_score = norm.ppf((1 + confidence_level) / 2)  # Z-score for 95% CI (~1.96)
+
+        # Lists to store mean forecasts and confidence intervals
+        mean_forecasts = []
+        lower_ci = []
+        upper_ci = []
+
+        # Initial input
+        x_input = raw_seq[-n_steps:].reshape((1, n_steps, n_features))
+
+        # Enable dropout at inference time (requires model to have Dropout layers)
+        model.trainable = True  # Ensure dropout is active
+
+        # Generate 5 forecasts
+        for _ in range(5):
+            # Perform Monte Carlo predictions
+            mc_predictions = []
+            for _ in range(n_mc):
+                ypred = model.predict(x_input, verbose=0)
+                mc_predictions.append(ypred[0, 0])
     
+            # Compute mean and standard deviation of predictions
+            mc_predictions = np.array(mc_predictions)
+            mean_pred = np.mean(mc_predictions)
+            std_pred = np.std(mc_predictions)
     
+            # Compute 95% confidence interval
+            margin_error = z_score * std_pred
+            lower_bound = mean_pred - margin_error
+            upper_bound = mean_pred + margin_error
     
-            # THE DIFFERENCING METHOD FOUND d =< 3 so use it in the regular ARIMA process
+            # Store results
+            mean_forecasts.append(mean_pred)
+            lower_ci.append(lower_bound)
+            upper_ci.append(upper_bound)
     
-    
+            # Update input for next prediction
+            if len(mean_forecasts) < n_steps:
+                x_input = np.append(raw_seq[-(n_steps-len(mean_forecasts)):], mean_forecasts)
             else:
-                # find the best p and q values to go with d for the ARIMA model
-                p_values = range(0, 3)
-                q_values = range(0, 3)
+                x_input = np.array(mean_forecasts[-n_steps:])
+    
+            x_input = x_input.reshape((1, n_steps, n_features))
+
         
+        #  create the df for display and graphing
+        forecast_index = pd.date_range(start=county_df.index[-1] + pd.offsets.YearBegin(1), 
+                                      periods=5, freq='YS')
+
+        # Create forecast DataFrame
+        forecast_df = pd.DataFrame({
+            'forecast': mean_forecasts,
+            'lower_ci': lower_ci,
+            'upper_ci': upper_ci
+        }, index=forecast_index)
+
+
+        # small df to connect the end of historical data to futue data (just for appearance)
+        gap_df = pd.DataFrame({'year': [county_df.index[-1], forecast_df.year[0]], topic_title: [county_df[topic_title][-1], forecast_df['forecast'][0]]})
+
+            # Create the chart with a dotted line
+        connection = alt.Chart(gap_df).mark_line().encode(
+                x='year',
+                y=topic_title,
+                strokeDash=alt.value( [4, 4]), #  Alternating dash and space lengths
+                color = alt.value('green')
+            )
     
-                # Grid search
-                best_aic = float("inf")
-                best_params = None
-    
-                for p in p_values:
-                    for q in q_values:
-                        try:
-                            model = ARIMA(county_df[topic_title], order=(p, topic_results[0], q))
-                            results = model.fit()
-                            aic = results.aic
-                            if aic < best_aic:
-                                best_aic = aic
-                                best_params = (p, topic_results[0], q)
-                
-                        except:
-                            continue
-    
-    
-    
-                # Define and fit ARIMA model (order can be tuned)
-                order = (p, topic_results[0], q)  # Example: ARIMA(1,1,1)
-                model = ARIMA(county_df[topic_title], order=order)
-                model_fit = model.fit()
-    
-                
-                # Forecast 5 years into the future
-                forecast_steps = 5
-                forecast = model_fit.get_forecast(steps=forecast_steps)
-                forecast_mean = forecast.predicted_mean
-                forecast_ci = forecast.conf_int()
-    
-                # Create dates for forecast
-                forecast_dates = pd.date_range(start=county_df.index[-1] + pd.offsets.YearBegin(1), 
-                                              periods=forecast_steps, freq='YS')
-    
-                # Create forecast DataFrame
-                forecast_df = pd.DataFrame({
-                    'year': forecast_dates,
-                    'forecast': forecast_mean,
-                    'lower_ci': forecast_ci.iloc[:, 0],
-                    'upper_ci': forecast_ci.iloc[:, 1]
-                })
+
+
+            # display chart in streamlit
+            # Create two columns: one for the chart, one for the legend
+        col1, col2 = st.columns([3, 1])
+
+        
+
+        with col1:
+                historical_line = alt.Chart(county_df).mark_line(point=True).encode(
+                    alt.Y(topic_title).title(chosen_topic),
+                    alt.X('year:T')
     
     
-                # small df to connect the end of historical data to futue data (just for appearance)
-                gap_df = pd.DataFrame({'year': [county_df.index[-1], forecast_df.year[0]], topic_title: [county_df[topic_title][-1], forecast_df['forecast'][0]]})
     
-                # Create the chart with a dotted line
-                connection = alt.Chart(gap_df).mark_line().encode(
-                    x='year',
-                    y=topic_title,
-                    strokeDash=alt.value( [4, 4]), #  Alternating dash and space lengths
-                    color = alt.value('green')
+                    )
+
+                forecast_band = alt.Chart(forecast_df).mark_errorband().encode(
+                    alt.Y(
+                        "upper_ci:Q",
+                        scale=alt.Scale(zero=False),
+        
+                    ).title(chosen_topic),
+                    alt.Y2("lower_ci:Q").title(chosen_topic),
+                    alt.X("year:T"),
+                    color = alt.value("red")
                 )
-        
+
+                forecast_line = alt.Chart(forecast_df).mark_line(point=True).encode(
+                    alt.Y("forecast").title(chosen_topic),
+                    alt.X("year:T"),
+                    color=alt.value("red")
+                )
+
+
+                chart = (historical_line + forecast_line + forecast_band + connection).properties(
+                    width=600,
+                    height=400,
+                    title=f'{chosen_topic} with ARIMA({p}, {topic_results[0]}, {q}) Forecast and 95% Confidence Interval',
     
-    
-                # display chart in streamlit
-                # Create two columns: one for the chart, one for the legend
-                col1, col2 = st.columns([3, 1])
-    
-                import altair as alt
-    
-                with col1:
-                    historical_line = alt.Chart(county_df).mark_line(point=True).encode(
-                        alt.Y(topic_title).title(chosen_topic),
-                        alt.X('year:T')
-        
-        
-        
-                        )
-    
-                    forecast_band = alt.Chart(forecast_df).mark_errorband().encode(
-                        alt.Y(
-                            "upper_ci:Q",
-                            scale=alt.Scale(zero=False),
-            
-                        ).title(chosen_topic),
-                        alt.Y2("lower_ci:Q").title(chosen_topic),
-                        alt.X("year:T"),
-                        color = alt.value("red")
-                    )
-    
-                    forecast_line = alt.Chart(forecast_df).mark_line(point=True).encode(
-                        alt.Y("forecast").title(chosen_topic),
-                        alt.X("year:T"),
-                        color=alt.value("red")
-                    )
-    
-    
-                    chart = (historical_line + forecast_line + forecast_band + connection).properties(
-                        width=600,
-                        height=400,
-                        title=f'{chosen_topic} with ARIMA({p}, {topic_results[0]}, {q}) Forecast and 95% Confidence Interval',
-        
-                    ).interactive()
-    
-                    st.altair_chart(chart, use_container_width=True)
-                    
-    
-                # Create standalone HTML legend
-                legend_html = """
-                <div style="font-family: Arial, sans-serif; padding: 10px; border: 1px solid #ccc; width: 200px; margin-top: 10px;">
-                    <h4 style="margin: 0 0 10px 0;">Legend</h4>
-                    <div style="display: flex; align-items: center; margin-bottom: 5px;">
-                        <div style="width: 20px; height: 2px; background-color: #1f77b4; margin-right: 5px;"></div>
-                        <span>Historical Data</span>
-                    </div>
-                    <div style="display: flex; align-items: center; margin-bottom: 5px;">
-                        <div style="width: 20px; height: 2px; background-color: #FF0000; margin-right: 5px;"></div>
-                        <span>Forecast</span>
-                    </div>
-                    <div style="display: flex; align-items: center;">
-                        <div style="width: 20px; height: 10px; background-color: #FF0000; opacity: 0.2; margin-right: 5px;"></div>
-                        <span>Confidence Interval</span>
-                    </div>
+                ).interactive()
+
+                st.altair_chart(chart, use_container_width=True)
+                
+
+        # Create standalone HTML legend
+        legend_html = """
+            <div style="font-family: Arial, sans-serif; padding: 10px; border: 1px solid #ccc; width: 200px; margin-top: 10px;">
+                <h4 style="margin: 0 0 10px 0;">Legend</h4>
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <div style="width: 20px; height: 2px; background-color: #1f77b4; margin-right: 5px;"></div>
+                    <span>Historical Data</span>
                 </div>
-                """
-                with col2:
-                    st.markdown(legend_html, unsafe_allow_html=True)
-    
-                    if chosen_topic in category_explanation:
-                        st.write('Definition:')
-                        st.markdown(f'{chosen_topic}:  {category_explanation[chosen_topic]}')
-    
-                col3, col4 = st.columns([1, 1])
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <div style="width: 20px; height: 2px; background-color: #FF0000; margin-right: 5px;"></div>
+                    <span>Forecast</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <div style="width: 20px; height: 10px; background-color: #FF0000; opacity: 0.2; margin-right: 5px;"></div>
+                    <span>Confidence Interval</span>
+                </div>
+            </div>
+            """
+        with col2:
+                st.markdown(legend_html, unsafe_allow_html=True)
+
+                if chosen_topic in category_explanation:
+                    st.write('Definition:')
+                    st.markdown(f'{chosen_topic}:  {category_explanation[chosen_topic]}')
+
+        col3, col4 = st.columns([1, 1])
+            
+        with col3:
+               st.markdown('Original Data Table')
+               st.dataframe(county_df[['year', topic_title]], hide_index = True)
                 
-                with col3:
-                   st.markdown('Original Data Table')
-                   st.dataframe(county_df[['year', topic_title]], hide_index = True)
-                    
-                
-                with col4:
-                   st.markdown('Forecast Table')
-                   st.dataframe(forecast_df[['forecast','lower_ci', 'upper_ci']])
-        except:
-            st.error("Unfortunately, this topic did not have enough data collected to support forecasting.  Please choose another topic or county.")                    
+            
+        with col4:
+               st.markdown('Forecast Table')
+               st.dataframe(forecast_df[['forecast','lower_ci', 'upper_ci']])
+
 else:
      st.write('Unfortunately, the data did not load correctly.  Please return to the main dashboard page before returning to create these charts.')
