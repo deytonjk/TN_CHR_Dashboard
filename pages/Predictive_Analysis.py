@@ -537,7 +537,7 @@ if 'df2009' in st.session_state:
             return array(X), array(y)
 
         # define input sequence
-        raw_seq = county_df['adult_obesity_raw_value'].values
+        raw_seq = county_df[topic_title].values
         # choose a number of time steps
         n_steps = 3
         
@@ -626,7 +626,7 @@ if 'df2009' in st.session_state:
 
 
         # small df to connect the end of historical data to futue data (just for appearance)
-        gap_df = pd.DataFrame({'year': [county_df.index[-1], forecast_df.year[0]], topic_title: [county_df[topic_title][-1], forecast_df['forecast'][0]]})
+        gap_df = pd.DataFrame({'year': [county_df.index[-1], forecast_df.index[0]], topic_title: [county_df[topic_title][-1], forecast_df['forecast'][0]]})
 
             # Create the chart with a dotted line
         connection = alt.Chart(gap_df).mark_line().encode(
