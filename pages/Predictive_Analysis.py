@@ -653,7 +653,7 @@ if 'df2009' in st.session_state:
     
                     )
 
-                forecast_band = alt.Chart(forecast_df).mark_errorband().encode(
+                forecast_band = alt.Chart(forecast_df).mark_errorband(opacity=0.3).encode(
                     alt.Y(
                         "upper_ci:Q",
                         scale=alt.Scale(zero=False),
