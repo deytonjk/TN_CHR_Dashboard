@@ -614,15 +614,16 @@ if 'df2009' in st.session_state:
 
         
         #  create the df for display and graphing
-        forecast_index = pd.date_range(start=county_df.index[-1] + pd.offsets.YearBegin(1), 
+        forecast_dates = pd.date_range(start=county_df.index[-1] + pd.offsets.YearBegin(1), 
                                       periods=5, freq='YS')
 
         # Create forecast DataFrame
         forecast_df = pd.DataFrame({
-            'forecast': mean_forecasts,
+            'year': forecast_dates,
+	    'forecast': mean_forecasts,
             'lower_ci': lower_ci,
             'upper_ci': upper_ci
-        }, index=forecast_index)
+        })
 
 
         # small df to connect the end of historical data to futue data (just for appearance)
