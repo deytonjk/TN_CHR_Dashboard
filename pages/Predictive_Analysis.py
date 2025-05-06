@@ -536,74 +536,74 @@ if 'df2009' in st.session_state:
             return array(X), array(y)
 
         # Prepare data for LSTM
-	raw_seq = county_df[topic_title].values
-	n_steps = 3
-	n_features = 1
-	X, y = split_sequence(raw_seq, n_steps)
+        raw_seq = county_df[topic_title].values
+        n_steps = 3
+        n_features = 1
+        X, y = split_sequence(raw_seq, n_steps)
 	
 	# Define LSTM model
-	model = Sequential([
-	    LSTM(50, activation='relu', input_shape=(n_steps, n_features), return_sequences=True),
-	    Dropout(0.2),
-	    LSTM(50, activation='relu'),
-	    Dropout(0.2),
-	    Dense(1)
-	])
-	model.compile(optimizer='adam', loss='mse')
+        model = Sequential([
+            LSTM(50, activation='relu', input_shape=(n_steps, n_features), return_sequences=True),
+            Dropout(0.2),
+            LSTM(50, activation='relu'),
+            Dropout(0.2),
+            Dense(1)
+        ])
+        model.compile(optimizer='adam', loss='mse')
 	
 	# Reshape data
-	X = X.reshape((X.shape[0], X.shape[1], n_features))
+        X = X.reshape((X.shape[0], X.shape[1], n_features))
 	
 	# Fit model
-	model.fit(X, y, epochs=200, verbose=0)
+        model.fit(X, y, epochs=200, verbose=0)
 	
 	# Monte Carlo Dropout Prediction Function
-	def mc_predict(model, x_input, n_mc=100):
-	    predictions = []
-	    for _ in range(n_mc):
-	        # Enable dropout during inference by setting training=True
-	        pred = model(x_input, training=True)
-	        predictions.append(pred.numpy()[0, 0])
-	    return np.array(predictions)
+        def mc_predict(model, x_input, n_mc=100):
+            predictions = []
+            for _ in range(n_mc):
+                # Enable dropout during inference by setting training=True
+                pred = model(x_input, training=True)
+                predictions.append(pred.numpy()[0, 0])
+            return np.array(predictions)
 	
 	# Forecast with confidence intervals
-	n_mc = 100  # Number of Monte Carlo samples
-	confidence_level = 0.95  # 95% confidence interval
-	z_score = norm.ppf((1 + confidence_level) / 2)  # Z-score for 95% CI (~1.96)
+        n_mc = 100  # Number of Monte Carlo samples
+        confidence_level = 0.95  # 95% confidence interval
+        z_score = norm.ppf((1 + confidence_level) / 2)  # Z-score for 95% CI (~1.96)
 	
-	mean_forecasts = []
-	lower_ci = []
-	upper_ci = []
+        mean_forecasts = []
+        lower_ci = []
+        upper_ci = []
 	
 	# Initial input
-	x_input = raw_seq[-n_steps:].reshape((1, n_steps, n_features))
+        x_input = raw_seq[-n_steps:].reshape((1, n_steps, n_features))
 	
 	# Generate 5 forecasts
-	for _ in range(5):
-	    # Get Monte Carlo predictions
-	    mc_predictions = mc_predict(model, x_input, n_mc=n_mc)
+        for _ in range(5):
+            # Get Monte Carlo predictions
+            mc_predictions = mc_predict(model, x_input, n_mc=n_mc)
 	    
 	    # Compute mean and standard deviation
-	    mean_pred = np.mean(mc_predictions)
-	    std_pred = np.std(mc_predictions)
+            mean_pred = np.mean(mc_predictions)
+            std_pred = np.std(mc_predictions)
 	    
 	    # Compute 95% confidence interval
-	    margin_error = z_score * std_pred
-	    lower_bound = mean_pred - margin_error
-	    upper_bound = mean_pred + margin_error
+            margin_error = z_score * std_pred
+            lower_bound = mean_pred - margin_error
+            upper_bound = mean_pred + margin_error
 	    
 	    # Store results
-	    mean_forecasts.append(mean_pred)
-	    lower_ci.append(lower_bound)
-	    upper_ci.append(upper_bound)
+            mean_forecasts.append(mean_pred)
+            lower_ci.append(lower_bound)
+            upper_ci.append(upper_bound)
 	    
 	    # Update input for next prediction
-	    if len(mean_forecasts) < n_steps:
-	        x_input = np.append(raw_seq[-(n_steps-len(mean_forecasts)):], mean_forecasts)
-	    else:
-	        x_input = np.array(mean_forecasts[-n_steps:])
+            if len(mean_forecasts) < n_steps:
+                x_input = np.append(raw_seq[-(n_steps-len(mean_forecasts)):], mean_forecasts)
+            else:
+                x_input = np.array(mean_forecasts[-n_steps:])
 	    
-	    x_input = x_input.reshape((1, n_steps, n_features))
+            x_input = x_input.reshape((1, n_steps, n_features))
 
 
         
