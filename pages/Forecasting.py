@@ -25,7 +25,7 @@ st.set_page_config(
         page_icon=":hospital",
         layout="wide"
 )
-st.title("Predictive Analysis")
+st.title("Forecasting")
 
 
    
@@ -232,7 +232,7 @@ if 'df2009' in st.session_state:
                       suppress_warnings=True)
             #st.markdown(model.summary())
             
-            forecasts, conf_int = model.predict(n_periods=10, return_conf_int=True)
+            forecasts, conf_int = model.predict(n_periods=5, return_conf_int=True)
             forecast_df = pd.DataFrame(forecasts, columns=['forecast']) 
             conf_df = pd.DataFrame(conf_int, columns=['lower_ci', 'upper_ci'])
             conf_df.index = forecast_df.index
@@ -374,8 +374,8 @@ if 'df2009' in st.session_state:
             model_fit = model.fit()
 
             
-            # Forecast 10 years into the future
-            forecast_steps = 10
+            # Forecast 5 years 
+            forecast_steps = 5
             forecast = model_fit.get_forecast(steps=forecast_steps)
             forecast_mean = forecast.predicted_mean
             forecast_ci = forecast.conf_int()
