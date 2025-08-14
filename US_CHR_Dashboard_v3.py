@@ -17,7 +17,7 @@ st.set_page_config(
 )
 st.title("National Health Rankings by State and County")
 
-overview = '''This webapp offers interactive charts showcasing health indicators U.S. states and counties, using data from the County Health Rankings (CHR) project, managed by the University of Wisconsin's Population Health Institute. The CHR project compiles health metrics for over 3,000 U.S. counties and cities, with data available from 2009 onward.  
+overview = '''This webapp offers interactive charts showcasing health indicators in U.S. states and counties, using data from the County Health Rankings (CHR) project, managed by the University of Wisconsin's Population Health Institute. The CHR project compiles health metrics for over 3,000 U.S. counties and cities, with data available from 2009 onward.  
 Users can explore health trends through customizable percentile and time series charts.  This platform allows users to select specific indicators, years, counties, and states to create personalized visualizations, with the option to download charts as PNG files for further use or analysis.'''
 
 st.markdown("OVERVIEW")
@@ -270,6 +270,7 @@ if st.button('Click to see the data in table form'):
         st.markdown(f'About {chosen_topic}:  {category_explanation[chosen_topic]}')
        
     trend_plot_data(abbr_state, chosen_counties, topic_title)
+
 
 
 
